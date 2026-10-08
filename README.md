@@ -208,6 +208,48 @@ docker compose exec orthoshoefix bash      # entrar al contenedor PHP
 docker compose ps                 # estado
 ```
 
+## Desarrollo local
+
+El mismo stack corre en tu máquina con `docker-compose.dev.yml` encima, que solo
+cambia PHP: errores en pantalla, OPcache revisando cambios en cada petición,
+cookies sin `secure` (http) y Xdebug. El servidor nunca usa ese archivo.
+
+1. Igual que dicotech: la infra se clona aparte (no se corre desde JMFH) y el
+   proyecto va dentro de su `projects/`:
+
+   ```bash
+   mkdir -p ~/fds && git clone https://github.com/manuelflores-dev/fds-orthoshoefix-infra.git ~/fds/orthoshoefix
+   cd ~/fds/orthoshoefix
+   git clone <repo-laravel> projects/orthoshoefix
+   ```
+
+2. `cp example.env .env` y en `NGINX_PORT` pon `8081` (el 80 ya lo usa dicotech).
+
+3. Levanta:
+
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+   ```
+
+4. Entra por **http://orthoshoefix.localhost:8081**. Los dominios `.localhost` apuntan solos a
+   tu máquina: no hay que tocar `/etc/hosts`.
+
+En el `.env` de Laravel: `APP_URL` con esa misma URL, `DB_HOST=db`,
+`REDIS_HOST=redis` y `SESSION_SECURE_COOKIE=false` (Laravel decide la cookie
+`secure` con esa variable, no con el php.ini). Dependencias y assets, dentro del
+contenedor:
+
+```bash
+docker compose exec orthoshoefix composer install
+docker compose exec orthoshoefix sh -c 'npm install && npm run build'
+```
+
+Xdebug se activa solo cuando lo pides (extensión *Xdebug helper* del navegador),
+hacia el puerto 9003 de PhpStorm, con el mapeo
+`projects/<proyecto>` → `/var/www/html/<proyecto>`.
+
+Para bajarlo: `docker compose down` (sin `-v`, o se borra la base local).
+
 ## Publicar cambios (deploy)
 
 ```bash

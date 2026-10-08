@@ -1,0 +1,14 @@
+# ── MODO DESARROLLO (solo en tu máquina, nunca en el servidor) ──────────────
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+# Se monta encima del docker-compose.yml de producción y solo cambia lo de PHP:
+# php.dev.ini (errores en pantalla, OPcache revisando cambios, Xdebug) e imagen
+# construida con Xdebug. Entra por http://orthoshoefix.localhost:${NGINX_PORT}
+services:
+  orthoshoefix:
+    build:
+      args:
+        INSTALL_XDEBUG: "true"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # Xdebug → PhpStorm en tu máquina
+    volumes:
+      - ./docker-config/php/orthoshoefix/php.dev.ini:/usr/local/etc/php/conf.d/zz-dev.ini:ro

@@ -43,6 +43,11 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y nodejs --no-install-recommends \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+#  Xdebug SOLO para desarrollo local: docker-compose.dev.yml lo activa con
+#  INSTALL_XDEBUG=true. En producción el argumento queda en false y no se instala.
+ARG INSTALL_XDEBUG=false
+RUN if [ "$INSTALL_XDEBUG" = "true" ]; then pecl install xdebug && docker-php-ext-enable xdebug; fi
+
 #  Usuario no-root
 RUN usermod -u 1000 www-data && groupmod -g 1000 www-data
 
