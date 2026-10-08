@@ -16,3 +16,6 @@ projects/*
 Thumbs.db
 .idea/
 .vscode/
+
+# Respaldos de la base — nunca en el repo
+backups/

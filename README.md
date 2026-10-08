@@ -5,7 +5,7 @@
 Orquestación dedicada de **orthoshoefix.com**: un proyecto Laravel con su
 propia base de datos.
 
-Stack: PHP 8.5-FPM · Nginx · MariaDB 11.8 · Redis 7
+Stack: PHP 8.5-FPM · Nginx · MariaDB 12.3 · Redis 8
 
 Repo **específico de este proyecto**, con el mismo patrón que
 `fds-natalia-infra`: un PHP-FPM por proyecto dentro de `projects/` y un Nginx
@@ -22,7 +22,7 @@ fds-orthoshoefix-infra-docker/
 ├── docker-config/
 │   ├── php/
 │   │   └── orthoshoefix/
-│   │       ├── Dockerfile    ← PHP 8.5 + extensiones Laravel + Node 22
+│   │       ├── Dockerfile    ← PHP 8.5 + extensiones Laravel + Node 24
 │   │       └── php.ini
 │   ├── nginx/                ← se monta completo como /etc/nginx/conf.d
 │   │   ├── 00-default.conf   ← catch-all: Host desconocido → 444
@@ -69,7 +69,7 @@ esté.
 Sin ese `name:`, el prefijo lo pone la carpeta — y renombrarla crea un volumen
 nuevo y vacío, con lo que parece que se borró la base de datos.
 
-Ten presente que **`MYSQL_DATABASE`, `MYSQL_USER` y `MYSQL_PASSWORD` solo se
+Ten presente que **`MARIADB_DATABASE`, `MARIADB_USER` y `MARIADB_PASSWORD` solo se
 aplican cuando el volumen está vacío.** Si montas un volumen que ya tiene
 datos, MariaDB los ignora y conserva los usuarios que ya tenía dentro. Para
 cambiar credenciales sobre una base existente hay que hacerlo desde SQL:
@@ -208,11 +208,63 @@ docker compose exec orthoshoefix bash      # entrar al contenedor PHP
 docker compose ps                 # estado
 ```
 
-Respaldo de la base:
+## Publicar cambios (deploy)
 
 ```bash
-docker compose exec db mariadb-dump -u root -p --single-transaction orthoshoefix > backup_orthoshoefix.sql
+./scripts/deploy.sh
 ```
+
+Baja el código del proyecto (`git pull`), corre `composer install --no-dev`,
+compila los assets si hay `package.json`, `php artisan migrate --force` y
+`php artisan optimize`, y **reinicia PHP**. Ese reinicio no es opcional: OPcache
+corre con `validate_timestamps=0` y sin él PHP sigue sirviendo el código anterior.
+Si alguna vez actualizas a mano, termina siempre con `docker compose restart orthoshoefix`.
+
+## Respaldos
+
+```bash
+./scripts/backup-db.sh
+```
+
+Deja `backups/AAAA-MM-DD_HHMM.sql.gz` (ignorado en git) y borra los de más de
+14 días (`DIAS=30 ./scripts/backup-db.sh` para cambiarlo). Para que corra solo,
+todos los días a las 3:30, con `crontab -e` del usuario que maneja Docker:
+
+```
+30 3 * * * /ruta/a/fds-orthoshoefix-infra-docker/scripts/backup-db.sh >> /ruta/a/fds-orthoshoefix-infra-docker/backups/backup.log 2>&1
+```
+
+Un respaldo que solo vive en el mismo servidor no sirve si el servidor se pierde:
+copia `backups/` a otro lado (otra máquina, un bucket) con `rsync` o `rclone`.
+
+Restaurar:
+
+```bash
+gunzip -c backups/ARCHIVO.sql.gz | docker compose exec -T db sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD"'
+```
+
+## Logs
+
+- `docker compose logs`: rotan solos (10 MB × 5 por contenedor, `x-logging` del compose).
+- `logs/nginx/*.log`: los escribe el nginx del stack y hay que rotarlos con el
+  logrotate del servidor. Una vez, desde la carpeta del repo:
+
+```bash
+sudo tee /etc/logrotate.d/fds-orthoshoefix > /dev/null <<EOF
+$(pwd)/logs/nginx/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}
+EOF
+```
+
+`copytruncate` porque nginx corre dentro del contenedor y no se le puede mandar
+la señal para reabrir el archivo.
 
 ## Notas de seguridad
 
@@ -224,5 +276,6 @@ docker compose exec db mariadb-dump -u root -p --single-transaction orthoshoefix
 - Un `Host` que no sea `orthoshoefix.com` recibe 444.
 - `/.well-known/` queda accesible a propósito: si se bloquea, se rompen los
   challenges ACME de Let's Encrypt.
-- OPcache con `validate_timestamps=0`: tras cada deploy hay que reiniciar PHP
-  para que tome el código nuevo (`docker compose restart orthoshoefix`).
+- OPcache con `validate_timestamps=0`: `scripts/deploy.sh` reinicia PHP al final
+  de cada publicación (ver *Publicar cambios*).
+- Logs de Docker con tope de tamaño y respaldos diarios de la base (ver arriba).

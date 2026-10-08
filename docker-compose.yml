@@ -1,5 +1,11 @@
 name: fds-orthoshoefix
 
+# Rotación de los logs de Docker (docker compose logs): sin esto crecen sin
+# límite y tarde o temprano llenan el disco del servidor.
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
 services:
 
   # ── PHP-FPM ORTHOSHOEFIX (Laravel 13 + Livewire — projects/orthoshoefix) ────
@@ -7,6 +13,7 @@ services:
     build: ./docker-config/php/orthoshoefix
     container_name: ${PHP_CONTAINER}
     restart: unless-stopped
+    logging: *logging
     environment:
       TZ: America/Chicago
     volumes:
@@ -24,6 +31,7 @@ services:
     image: nginx:stable-alpine
     container_name: ${NGINX_CONTAINER}
     restart: unless-stopped
+    logging: *logging
     environment:
       TZ: America/Chicago
     ports:
@@ -38,16 +46,19 @@ services:
     depends_on:
       - orthoshoefix
 
-  # ── MARIADB 11 ──────────────────────────────────────────────────────────────
+  # ── MARIADB 12.3 ──────────────────────────────────────────────────────────────
   db:
-    image: mariadb:11.8
+    image: mariadb:12.3
     container_name: ${MARIADB_CONTAINER}
     restart: unless-stopped
+    logging: *logging
     environment:
-      MYSQL_DATABASE: ${DB_DATABASE}
-      MYSQL_USER: ${DB_USERNAME}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${DB_DATABASE}
+      MARIADB_USER: ${DB_USERNAME}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      # Al cambiar de versión de MariaDB, actualiza sola las tablas del sistema.
+      MARIADB_AUTO_UPGRADE: \"1\"
       TZ: America/Chicago
     ports:
       - "127.0.0.1:${MARIADB_PORT}:3306"
@@ -65,9 +76,10 @@ services:
 
   # ── REDIS ───────────────────────────────────────────────────────────────────
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: ${REDIS_CONTAINER}
     restart: unless-stopped
+    logging: *logging
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     environment:
       TZ: America/Chicago

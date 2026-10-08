@@ -36,15 +36,15 @@ RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 COPY php.ini /usr/local/etc/php/conf.d/custom.ini
 
 #  Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-#  Node 22 — para compilar los assets de Vite/Tailwind/Livewire
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+#  Node 24 — para compilar los assets de Vite/Tailwind/Livewire
+RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y nodejs --no-install-recommends \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 #  Usuario no-root
-RUN usermod -u 1000 www-data
+RUN usermod -u 1000 www-data && groupmod -g 1000 www-data
 
 WORKDIR /var/www/html/orthoshoefix
 USER www-data
