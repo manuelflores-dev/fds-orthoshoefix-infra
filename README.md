@@ -15,20 +15,21 @@ central con un `server{}` por dominio. La plantilla genérica reutilizable es
 ## Estructura
 
 ```
-fds-orthoshoefix-infra/
+fds-orthoshoefix-infra-docker/
 ├── docker-compose.yml
-├── example.env           ← copiar a .env y configurar
+├── example.env               ← copiar a .env y configurar
 ├── .gitignore
-├── php/
-│   └── orthoshoefix/
-│       ├── Dockerfile    ← PHP 8.5 + extensiones Laravel + Node 22
-│       └── php.ini
-├── nginx/                ← se monta completo como /etc/nginx/conf.d
-│   ├── 00-default.conf   ← catch-all: Host desconocido → 444
-│   └── orthoshoefix.conf ← server{} del proyecto
-├── db_conf/
-│   └── my.cnf
-├── logs/                 ← logs de Nginx (ignorado en git)
+├── docker-config/
+│   ├── php/
+│   │   └── orthoshoefix/
+│   │       ├── Dockerfile    ← PHP 8.5 + extensiones Laravel + Node 22
+│   │       └── php.ini
+│   ├── nginx/                ← se monta completo como /etc/nginx/conf.d
+│   │   ├── 00-default.conf   ← catch-all: Host desconocido → 444
+│   │   └── orthoshoefix.conf ← server{} del proyecto
+│   └── mariadb/
+│       └── my.cnf
+├── logs/nginx/               ← logs de Nginx (ignorado en git)
 └── projects/             ← aquí se clona el proyecto (ignorado en git)
     └── orthoshoefix/
 ```
@@ -37,8 +38,8 @@ Este repo es **solo infraestructura**: `projects/` viaja vacío.
 
 El nombre de carpeta `projects/orthoshoefix` es obligatorio: lo usan el volumen
 del servicio y el `root` de nginx. Si algún día quieres meter un segundo
-proyecto aquí, son tres cosas: un servicio en compose, un `.conf` en `nginx/`
-y su Dockerfile en `php/<proyecto>/`.
+proyecto aquí, son tres cosas: un servicio en compose, un `.conf` en `docker-config/nginx/`
+y su Dockerfile en `docker-config/php/<proyecto>/`.
 
 ## Convivencia con los otros stacks
 
@@ -166,7 +167,7 @@ tres tienen que coincidir:
 | Dónde | Qué controla |
 |---|---|
 | `TZ` en los 4 servicios de `docker-compose.yml` | reloj del sistema en cada contenedor: logs de nginx, `NOW()` de MariaDB, cron |
-| `date.timezone` en `php/orthoshoefix/php.ini` | funciones de fecha de PHP |
+| `date.timezone` en `docker-config/php/orthoshoefix/php.ini` | funciones de fecha de PHP |
 | `APP_TIMEZONE` en el `.env` de Laravel | `Carbon`, `now()`, timestamps de Eloquent |
 
 El tercero es el que se olvida: la `TZ` del contenedor **no** cambia la zona

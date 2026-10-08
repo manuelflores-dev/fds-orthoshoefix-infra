@@ -33,7 +33,7 @@ RUN pecl install redis \
 
 #  PHP ini para producción
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
-COPY php/orthoshoefix/php.ini /usr/local/etc/php/conf.d/custom.ini
+COPY php.ini /usr/local/etc/php/conf.d/custom.ini
 
 #  Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer

@@ -1,10 +1,11 @@
 # Entorno — nunca se sube el .env real
 .env
 
-
 # Logs — solo se sube el placeholder
 logs/*
-!logs/.gitkeep
+!logs/nginx/
+logs/nginx/*
+!logs/nginx/.gitkeep
 
 # Código fuente — cada proyecto se clona por separado dentro de projects/
 projects/*
